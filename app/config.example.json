@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "pollIntervalMs": 15000,
+  "stablePolls": 2,
+  "onlyBilibili": true,
+  "port": 8765,
+  "autoWatch": true,
+  "autoStartWindows": false,
+  "skipInsufficientMaterial": true,
+  "minMaterialScore": 120,
+  "confirmBeforeGenerate": true,
+  "provider": {
+    "kind": "auto",
+    "model": "",
+    "baseURL": "",
+    "apiKey": "",
+    "maxTokens": 4096
+  }
+}

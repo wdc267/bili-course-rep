@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B站课代表 · B站课程实时总结</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16.5A1.5 1.5 0 0 1 18.5 21H6.5A2.5 2.5 0 0 1 4 18.5z"></path>
+        <path d="M8 3v18"></path>
+        <path d="M12 8h5M12 12h5"></path>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>B站课代表</h1>
+      <p>B 站课程实时总结</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span id="statusPill" class="pill status">连接中…</span>
+    <label class="switch" title="监视开关">
+      <input id="toggleWatch" type="checkbox">
+      <span class="slider"></span>
+    </label>
+    <select id="quickInterval" class="select" title="轮询间隔">
+      <option value="5000">5 秒</option>
+      <option value="15000" selected>15 秒</option>
+      <option value="30000">30 秒</option>
+      <option value="60000">60 秒</option>
+    </select>
+    <button id="btnScan" class="btn primary" title="立即提取当前或最近检测到的 B 站视频（不用等轮询倒计时）">立即提取</button>
+    <button id="btnFloat" class="btn" title="打开置顶悬浮小窗，边看视频边确认笔记">悬浮窗</button>
+    <button id="btnSettings" class="btn" title="设置">设置</button>
+    <button id="btnQuit" class="btn ghost" title="退出应用">退出</button>
+  </div>
+</header>
+
+<div id="offlineBanner" class="banner hidden">
+  <span id="offlineText">与本地服务断开，请双击桌面快捷方式「B站课代表」重新启动。</span>
+  <button id="btnRetryConnect" class="btn small">重试连接</button>
+</div>
+
+<main class="layout">
+  <section class="card poll-card">
+    <div class="card-head">
+      <div>
+        <h2>实时轮询</h2>
+        <p id="pollMeta" class="muted">等待第一次轮询</p>
+      </div>
+      <span id="lockBadge" class="pill tiny hidden"></span>
+    </div>
+    <div class="now-window">
+      <div class="now-label">当前前台窗口</div>
+      <div id="nowTitle" class="now-title">尚未读取</div>
+      <div id="nowProc" class="muted small"></div>
+      <div id="pollHint" class="poll-hint"></div>
+    </div>
+    <div class="countdown"><div id="countdownBar" class="countdown-bar"></div></div>
+    <div class="log-toolbar">
+      <div class="tabs" id="logTabs">
+        <button class="tab active" data-filter="all">全部</button>
+        <button class="tab" data-filter="bili">仅 B 站</button>
+        <button class="tab" data-filter="skip">已跳过</button>
+      </div>
+      <label class="check small"><input id="autoScroll" type="checkbox" checked>自动滚动</label>
+      <button id="clearLog" class="link-btn">清空</button>
+    </div>
+    <div id="logList" class="log-list"></div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <section class="card summary-card">
+    <div class="card-head">
+      <div>
+        <h2>实时总结</h2>
+        <p id="summarySub" class="muted">检测到 B 站课程后自动生成</p>
+      </div>
+      <div class="badges">
+        <span id="providerBadge" class="pill tiny"></span>
+        <span id="generatorBadge" class="pill tiny hidden"></span>
+      </div>
+    </div>
+
+    <div id="summaryBody" class="summary-body">
+      <div id="summaryEmpty" class="empty">
+        <div class="empty-icon">◐</div>
+        <h3>等待一门课程</h3>
+        <p>在前台打开 B 站课程视频，本页会实时显示轮询与总结过程。<br>也可以在设置里用「模拟标题」先体验一次。</p>
+        <button id="btnEmptyScan" class="btn">立即提取当前视频</button>
+      </div>
+
+      <div id="summaryContent" class="summary-content hidden">
+        <div class="summary-head">
+          <span id="subjectChip" class="chip hidden"></span>
+          <h3 id="summaryTitle">—</h3>
+          <div id="summaryMeta" class="muted small"></div>
+        </div>
+        <div id="phaseBar" class="phase-bar">
+          <div class="phase" data-phase="1">识别</div>
+          <div class="phase" data-phase="2">分类/抓取</div>
+          <div class="phase" data-phase="3">生成总结</div>
+          <div class="phase" data-phase="4">Word</div>
+        </div>
+        <div id="markdown" class="markdown">
+          <div class="stream-hint">总结生成中，内容会实时出现…</div>
+        </div>
+        <div class="summary-actions">
+          <button id="btnDownload" class="btn primary" disabled>下载 Word</button>
+          <button id="btnDownloadMd" class="btn" disabled title="导出 Markdown（同时保存在学科目录）">导出 Markdown</button>
+          <button id="btnOpenFolder" class="btn">打开文件夹</button>
+          <button id="btnDeleteNote" class="btn danger" disabled>删除此笔记</button>
+          <span id="summaryTime" class="muted small"></span>
+        </div>
+
+        <section id="timelineSection" class="timeline hidden">
+          <div class="timeline-head">
+            <h3>字幕时间线</h3>
+            <span id="timelineMeta" class="muted small"></span>
+          </div>
+          <div id="timelineList" class="timeline-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="pending hidden" id="pendingSection">
+      <div class="pending-head">
+        <h3>待确认的视频</h3>
+        <span id="pendingCount" class="muted small"></span>
+      </div>
+      <div id="pendingList" class="pending-list"></div>
+    </div>
+
+    <div class="shelf">
+      <div class="shelf-head">
+        <h3>学科书架</h3>
+        <span id="shelfCount" class="muted small"></span>
+      </div>
+      <div id="shelfChips" class="chips"></div>
+    </div>
+
+    <div class="history">
+      <div class="history-head">
+        <h3>历史笔记</h3>
+        <span id="historyCount" class="muted small"></span>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<div id="settingsOverlay" class="overlay hidden">
+  <div class="drawer">
+    <div class="drawer-head">
+      <h2>设置</h2>
+      <button id="btnCloseSettings" class="icon-btn" aria-label="关闭">×</button>
+    </div>
+    <div class="drawer-body">
+      <section class="setting-group">
+        <h3>总结引擎</h3>
+        <p class="muted small">独立运行不依赖 DSH。没有模型/Key 时自动使用离线抽取。</p>
+        <label class="field">
+          <span>引擎</span>
+          <select id="setProviderKind" class="input">
+            <option value="auto">自动（优先 API Key，其次 Ollama）</option>
+            <option value="ollama">Ollama 本地模型</option>
+            <option value="deepseek">DeepSeek / OpenAI 兼容 API</option>
+            <option value="extractive">离线抽取（不调用模型）</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>模型</span>
+          <div class="row">
+            <input id="setModel" class="input" placeholder="如 qwen2.5:3b / deepseek-chat">
+            <button id="btnListModels" class="btn small">刷新 Ollama</button>
+          </div>
+          <div id="modelList" class="model-list"></div>
+        </label>
+        <label class="field">
+          <span>Base URL（可选）</span>
+          <input id="setBaseURL" class="input" placeholder="https://api.deepseek.com/v1 或 http://127.0.0.1:11434/v1">
+        </label>
+        <label class="field">
+          <span>API Key</span>
+          <div class="row">
+            <input id="setApiKey" type="password" class="input" placeholder="留空表示不修改">
+            <button id="btnClearKey" class="btn small">清除</button>
+          </div>
+          <span id="keyHint" class="muted small"></span>
+        </label>
+        <div class="row between">
+          <button id="btnTestProvider" class="btn">测试连接</button>
+          <span id="providerHint" class="muted small"></span>
+        </div>
+        <div class="hint-box">
+          需要更多模型时，可在终端执行：<code>ollama pull qwen2.5:3b</code>；已有模型可忽略
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <h3>监听</h3>
+        <label class="field">
+          <span>轮询间隔 <b id="setIntervalText">15 秒</b></span>
+          <input id="setInterval" type="range" min="3" max="60" step="1" value="15">
+        </label>
+        <label class="field">
+          <span>稳定确认次数</span>
+          <select id="setStable" class="input">
+            <option value="1">1 次</option>
+            <option value="2" selected>2 次</option>
+            <option value="3">3 次</option>
+          </select>
+        </label>
+        <label class="check"><input id="setOnlyBili" type="checkbox" checked>只处理 B 站视频</label>
+        <label class="check"><input id="setConfirm" type="checkbox" checked>生成前先确认（检测到 B 站视频时先询问）</label>
+        <label class="check"><input id="setSkipSparse" type="checkbox" checked>素材不足时跳过（避免空泛笔记）</label>
+        <p class="muted small" style="margin:4px 0 8px">只保存能匹配到 B 站 BV 号的笔记；匹配不到会跳过，不写入知识库。</p>
+        <label class="check"><input id="setAutoWatch" type="checkbox" checked>打开应用后自动开始监视</label>
+        <label class="check"><input id="setAutoStart" type="checkbox">开机自启（后台监视，不自动打开页面）</label>
+      </section>
+
+      <section class="setting-group">
+        <h3>B站 字幕（AI 字幕）</h3>
+        <p class="muted small">B站字幕接口需要登录态。填写 SESSDATA 后优先读取人工中文字幕，其次读取「中文（自动生成）」AI 字幕；未登录时多数视频字幕为空。</p>
+        <label class="field">
+          <span>登录 Cookie <b id="biliCookieState"></b></span>
+          <div class="row">
+            <input id="setBiliCookie" type="password" class="input" placeholder="粘贴 SESSDATA=... 或完整 Cookie；留空不修改">
+            <button id="btnClearBiliCookie" class="btn small">清除</button>
+          </div>
+          <span class="muted small">只保存在本机知识库 .state/bili-auth.json，不会回显或写入笔记。</span>
+        </label>
+        <label class="field">
+          <span>测试字幕（可选标题，留空检测当前前台）</span>
+          <div class="row">
+            <input id="setBiliTestTitle" class="input" placeholder="粘贴 B 站视频标题…">
+            <button id="btnTestBili" class="btn small">测试字幕</button>
+          </div>
+          <span id="biliHint" class="muted small"></span>
+        </label>
+        <div class="hint-box">获取方法：用浏览器登录 B站 → F12 → Application/应用 → Cookies → https://www.bilibili.com → 复制 <code>SESSDATA</code> 的值。Cookie 仅用于读取你自己账号可见的字幕。</div>
+      </section>
+
+      <section class="setting-group">
+        <h3>输出</h3>
+        <label class="field">
+          <span>知识库目录</span>
+          <input id="setOutput" class="input" readonly>
+        </label>
+        <button id="btnOpenOutput" class="btn small">打开知识库</button>
+      </section>
+
+      <section class="setting-group">
+        <h3>调试</h3>
+        <label class="field">
+          <span>模拟一个视频标题（不读前台窗口）</span>
+          <div class="row">
+            <input id="setMockTitle" class="input" placeholder="粘贴 B 站视频标题…">
+            <button id="btnMockScan" class="btn small">扫描</button>
+          </div>
+        </label>
+        <p class="muted small">日志文件：app/logs/app.log；轮询日志：知识库/.state/poll.log</p>
+      </section>
+    </div>
+    <div class="drawer-foot">
+      <button id="btnSaveSettings" class="btn primary">保存设置</button>
+      <span id="saveHint" class="muted small"></span>
+    </div>
+  </div>
+</div>
+
+<div id="quitOverlay" class="overlay hidden">
+  <div class="bye">
+    <h2>已退出监视</h2>
+    <p class="muted">B站课代表服务已关闭，可关闭此页面。下次双击桌面快捷方式重新启动。</p>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

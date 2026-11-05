@@ -1,0 +1,18 @@
+# 运行数据（含你的笔记、Cookie、日志、API Key，不要提交）
+课程知识地图/
+app/config.json
+app/logs/
+app/server.pid
+.cache/
+.backup*/
+_archive/
+
+# 测试/构建产物
+.tmp-coursemap-*/
+*.log
+node_modules/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
